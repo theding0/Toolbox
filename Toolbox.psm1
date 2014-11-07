@@ -6,7 +6,7 @@
 	    Connect-o365
 #>
 function Connect-O365{
-	$o365cred = Get-Credential username@domain.onmicrosoft.com
+	$o365cred = Get-Credential
 	$session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $o365cred -Authentication Basic -AllowRedirection 
     Connect-MsolService -Credential $o365cred
 	Import-Module (Import-PSSession $session365 -AllowClobber) -Global
@@ -14,6 +14,25 @@ function Connect-O365{
 function Disconnect-ExchangeOnline {
     Get-PSSession | ?{$_.ComputerName -like "*outlook.com"} | Remove-PSSession
 }
+<#
+.NAME
+    Get-Distro
+
+.SYNOPSIS
+    Provide a list of distribution groups a user is a member of
+
+.DESCRIPTION
+    Checks every distribution group for a member with the same distinguished name as the user given
+
+.PARAMETERS User
+    Specify the user
+
+.OUTPUTS
+    Array of Group objects
+
+.EXAMPLE
+    Get-Distro djones
+#>
 function Get-Distro {
     [CmdLetBinding()]
     param(
@@ -25,6 +44,7 @@ function Get-Distro {
     $user_dn = (Get-Mailbox $user).distinguishedname
     $Group = @(Get-DistributionGroup -ResultSize Unlimited)
     $Distros = @()
+    $i = 1
     
     } # End BEGIN block
         
@@ -32,8 +52,8 @@ function Get-Distro {
 
         foreach ($g in $Group)
         {
-            $i = 1
-            Write-Progress -Activity "Collecting distribution groups" -Status "Checking $g" -PercentComplete ($i/$Group.Count)
+            
+            Write-Progress -Activity "Collecting distribution groups" -Status "Checking $g" -PercentComplete ($i/$($Group.Count) * 100)
             if ((Get-DistributionGroupMember $g.identity | select -expand distinguishedname) -contains $user_dn)
             {
                 
