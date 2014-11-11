@@ -6,12 +6,27 @@
 	    Connect-o365
 #>
 function Connect-O365{
-	$o365cred = Get-Credential
-	$session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $o365cred -Authentication Basic -AllowRedirection 
-    Connect-MsolService -Credential $o365cred
-	Import-Module (Import-PSSession $session365 -AllowClobber) -Global
+    [CmdletBinding()]
+    param(
+	$cred
+    )
+    BEGIN 
+    {
+
+        $cred = Get-Credential
+
+    }
+    PROCESS 
+    {
+	    $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
+        Connect-MsolService -Credential $cred
+    }
+    END
+    {
+	    Import-Module (Import-PSSession $session365 -AllowClobber) -Global
+    }
 }
-function Disconnect-ExchangeOnline {
+function Disconnect-O365 {
     Get-PSSession | ?{$_.ComputerName -like "*outlook.com"} | Remove-PSSession
 }
 <#
@@ -36,37 +51,57 @@ function Disconnect-ExchangeOnline {
 function Get-Distro {
     [CmdLetBinding()]
     param(
-        [Parameter(Position=0,Mandatory=$true)]
-        [string]$User
+        [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$True)]
+        [string[]]$User
     )
     BEGIN {
-
-    $user_dn = (Get-Mailbox $user).distinguishedname
-    $Group = @(Get-DistributionGroup -ResultSize Unlimited)
-    $Distros = @()
-    $i = 1
     
+        $Group = @(Get-DistributionGroup -ResultSize Unlimited)
+        $ucount = 0
+        $Distros = @()
+        
+
+        
+
     } # End BEGIN block
+
         
     PROCESS {
+     
+        foreach ($u in $User) {
+    
+            $Distros += New-object -TypeName psobject -Property @{
+                Name = $((Get-Mailbox $u).displayname)
+                MemberOf = @()
+               
+            } # End property hash 
+            
+            $i = 0
+            $user_dn = $((Get-Mailbox $u).distinguishedname)
+           
+            foreach ($g in $Group) {
+            
+                    
+                Write-Progress -Activity "Collecting distribution groups for $((Get-Mailbox ($u)).displayname)" -Status "Checking $g" -PercentComplete ($i / $Group.Count * 100)
+               
+                if ((Get-DistributionGroupMember $g.identity | select -expand distinguishedname) -contains $user_dn) {
+                    
+                    $Distros[$ucount].MemberOf += $g
+                                
+                 } # End identity check
 
-        foreach ($g in $Group)
-        {
-            
-            Write-Progress -Activity "Collecting distribution groups" -Status "Checking $g" -PercentComplete ($i/$($Group.Count) * 100)
-            if ((Get-DistributionGroupMember $g.identity | select -expand distinguishedname) -contains $user_dn)
-            {
-                
-                $Distros += $g
-            
-            } # End identity check
-            $i++
-        } # End foreach $Group
-    } #End PROCESS block
+                    $i++  
+             } # End foreach $Group
+             $ucount++
+       
+        
+    } # End foreach $User
+        
+} #End PROCESS block
 
     END {
-
-    Write-Output $Distros
+    
+    Write-Output ($Distros | sort name ) 
 
 
     } # End END block
