@@ -18,5 +18,9 @@ Output of the command can also be sent through the pipeline for official reporti
     Get-Distro <alias>						- Returns specific user's distribution group membership
 	Get-Mailbox | Get-Distro				- Full audit
 	
+## Get-Telnet
+Replacement for the telnet command. Multiple services can be specified to check for open ports on a list of servers
 
-     
+	Get-Telnet google.com 80				- Returns connection status of server 'google.com' on port 80
+	Get-Telnet google.com,yahoo.com 80		- Returns connection status for 'google.com' and 'yahoo.com' on port 80
+	
