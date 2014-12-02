@@ -19,7 +19,14 @@ function Connect-O365{
     }
     PROCESS
     {
-	    $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection
+        if ($PSVersionTable.Version.Major -gt 4) { 
+            Write-Debug "Powershell version is greater than 4. Routing to updated Uri"
+            $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
+        } 
+	    else { 
+            Write-Debug "Powershell version is 4 or below. Routing to old Uri"
+            $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
+        }
         Connect-MsolService -Credential $cred
     }
     END
@@ -108,8 +115,6 @@ function Get-Distro {
 
     } # End END block
 } # End Get-Distro function
-
-
 <#
 .SYNOPSIS
     Command prompt Telnet replacement
@@ -169,6 +174,13 @@ function Get-Telnet {
                 Name = $s
                 Connected = $Socket.Connected
             }    
+            
+            if ($obj.Connected = "False") {
+            for ($i=0,$i -lt 5,$i++) {
+                    Start-Sleep -milliseconds 500
+                }
+                $Socket.Dispose()
+            }
             
             $Results += $obj
             $Socket.Dispose()
