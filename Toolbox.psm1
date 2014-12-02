@@ -13,20 +13,20 @@ function Connect-O365{
     )
     BEGIN
     {
+
         $cred = Get-Credential
+
+    }
+    PROCESS
+    {
         if ($PSVersionTable.Version.Major -gt 4) { 
             Write-Debug "Powershell version is greater than 4. Routing to updated Uri"
-            $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/﻿" -Credential $cred -Authentication Basic -AllowRedirection 
+            $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
         } 
 	    else { 
             Write-Debug "Powershell version is 4 or below. Routing to old Uri"
             $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
         }
-
-    }
-    PROCESS
-    {
-
         Connect-MsolService -Credential $cred
     }
     END
