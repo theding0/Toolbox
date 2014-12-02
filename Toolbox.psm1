@@ -19,7 +19,14 @@ function Connect-O365{
     }
     PROCESS
     {
-	    $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection
+        if ($PSVersionTable.Version.Major -gt 4) { 
+            Write-Debug "Powershell version is greater than 4. Routing to updated Uri"
+            $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
+        } 
+	    else { 
+            Write-Debug "Powershell version is 4 or below. Routing to old Uri"
+            $session365 = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell/" -Credential $cred -Authentication Basic -AllowRedirection 
+        }
         Connect-MsolService -Credential $cred
     }
     END
@@ -108,75 +115,3 @@ function Get-Distro {
 
     } # End END block
 } # End Get-Distro function
-
-
-<#
-.SYNOPSIS
-    Command prompt Telnet replacement
-
-.DESCRIPTION
-    Creates a socket object and attempts to connect that object to the specified server on the specified port
-
-.PARAMETER Server
-    Multiple servers can be tested by comma seperated IP addresses 
-
-.PARAMETER Port
-    Port number to be tested
-
-.EXAMPLE
-    Get-Telnet 10.150.1.10 25
-
-    Test a single server for a connection on SMTP port
-
-.EXAMPLE
-    Get-Telnet 10.150.1.10,10.150.1.12 80
-
-    Check for open HTTP port on multiple servers
-
-.OUTPUT
-    PSObject Array
-
-#>
-function Get-Telnet {
-    param(
-    [Parameter(Position=0,Mandatory=$true)]
-    [string[]]$Server,
-    [Parameter(Position=1,Mandatory=$true)]
-    [int]$Port
-    )
-    BEGIN {
-    $Results = @()
-    }
-
-    PROCESS {
-    foreach ($s in $Server) {
-                        
-            # Test and enumerate servers with TCP port open
-            # Create a Net.Sockets.TcpClient object to use for checking for open TCP ports
-            $Socket = New-Object Net.Sockets.TcpClient
-
-            # Suppress error messages
-            $ErrorActionPreference = 'SilentlyContinue'
-
-            # Try to connect
-            $Socket.Connect($s, $Port)
-
-            # Make error messages visible again
-            $ErrorActionPreference = 'Continue'
-
-            # Determine if we are connected
-            $obj = New-Object -TypeName PSObject -Property @{
-                Name = $s
-                Connected = $Socket.Connected
-            }    
-            
-            $Results += $obj
-            $Socket.Dispose()
-        } # End foreach $s in $server
-    } # End PROCESS block
-
-    END {
-        Write-Output $Results
-    }
-
-} # End Get-Telnet function
