@@ -91,7 +91,6 @@ function Get-Distro {
     BEGIN {
 
         $Group = @(Get-DistributionGroup -ResultSize Unlimited)
-        $ucount = 0
         $Distros = @()
 
 
@@ -100,44 +99,27 @@ function Get-Distro {
     } # End BEGIN block
 
 
-    PROCESS {
+    PROCESS 
+    {
+        
+        for($ucount=0; $ucount -lt $User.Count; $ucount++) {
 
-        foreach ($u in $User) {
-
-            $Distros += New-object -TypeName psobject -Property @{
-                Name = $((Get-Mailbox $u).displayname)
-                MemberOf = @() -split ","
-
-            } # End property hash
-
-            $i = 0
-            $user_dn = $((Get-Mailbox $u).distinguishedname)
-
-            foreach ($g in $Group) {
+            $Distros += New-object -TypeName psobject -Property @{Name = $((Get-Mailbox $User[$ucount]).displayname);MemberOf = @() -split ","} 
+            $user_dn = $((Get-Mailbox $User[$ucount]).distinguishedname)
+            for($i=0; $i -lt $Group.Count; $i++) {
+                Write-Progress -Activity "Collecting distribution groups for $((Get-Mailbox ($User[$ucount])).displayname)" -Status "Checking $($Group[$i].DisplayName)" -PercentComplete ($i / $Group.Count * 100)
+                if ((Get-DistributionGroupMember $Group[$i].identity | select -expand distinguishedname) -contains $user_dn) {
+                    $Distros[$ucount].MemberOf += $Group[$i]
+                } # End identity check
+            } # End group/progress FOR
+        } # End user count FOR
+    } # End PROCESS block
 
 
-                Write-Progress -Activity "Collecting distribution groups for $((Get-Mailbox ($u)).displayname)" -Status "Checking $g" -PercentComplete ($i / $Group.Count * 100)
-
-                if ((Get-DistributionGroupMember $g.identity | select -expand distinguishedname) -contains $user_dn) {
-
-                    $Distros[$ucount].MemberOf += $g
-
-                 } # End identity check
-
-                    $i++
-
-             } # End foreach $Group
-             $ucount++
-
-    } # End foreach $User
-
-} #End PROCESS block
 
     END {
 
     $Distros | ft -AutoSize -Wrap
-
-
 
     } # End END block
 } # End Get-Distro function
