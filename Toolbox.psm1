@@ -103,7 +103,6 @@ function Get-Distro {
     {
         
         for($ucount=0; $ucount -lt $User.Count; $ucount++) {
-
             $Distros += New-object -TypeName psobject -Property @{Name = $((Get-Mailbox $User[$ucount]).displayname);MemberOf = @() -split ","} 
             $user_dn = $((Get-Mailbox $User[$ucount]).distinguishedname)
             for($i=0; $i -lt $Group.Count; $i++) {
@@ -151,8 +150,7 @@ function Get-Distro {
     PSObject Array
 
 #>
-Function Get-Telnet
-{   Param (
+Function Get-Telnet{   Param (
         [CmdletBinding()]
         [Parameter(ValueFromPipeline=$true)]
         [String[]]$Commands = @("username"),
