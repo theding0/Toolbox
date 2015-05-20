@@ -39,11 +39,12 @@ function Connect-O365 {
     BEGIN
     {
        
-       if ((!$Password) -and (!$Cred)) { $Cred = Get-Credential $Username }
+       if ((!$Password) -and (!$Cred) -and ($Username)) { $Cred = Get-Credential -Message $Username }
+       elseif (!$Username) { $cred = Get-Credential }
        else {
        
-        $secpasswd = ConvertTo-SecureString $Password -AsPlainText -Force
-        $Cred = New-Object System.Management.Automation.PSCredential($Username,$secpasswd)
+        $secpasswd = ConvertTo-SecureString -String $Password -AsPlainText -Force
+        $Cred = New-Object -TypeName System.Management.Automation.PSCredential($Username,$secpasswd)
 
        }
     }
@@ -56,7 +57,7 @@ function Connect-O365 {
     }
     END
     {
-	    Import-Module (Import-PSSession $session365 -AllowClobber) -Global
+	    Import-Module -ModuleInfo (Import-PSSession -Session $session365 -AllowClobber) -Global
     }
 }
 function Disconnect-O365 {
@@ -107,7 +108,7 @@ function Get-Distro {
             $user_dn = $((Get-Mailbox $User[$ucount]).distinguishedname)
             for($i=0; $i -lt $Group.Count; $i++) {
                 Write-Progress -Activity "Collecting distribution groups for $((Get-Mailbox ($User[$ucount])).displayname)" -Status "Checking $($Group[$i].DisplayName)" -PercentComplete ($i / $Group.Count * 100)
-                if ((Get-DistributionGroupMember $Group[$i].identity | select -expand distinguishedname) -contains $user_dn) {
+                if ((Get-DistributionGroupMember $Group[$i].identity | Select-Object -expand distinguishedname) -contains $user_dn) {
                     $Distros[$ucount].MemberOf += $Group[$i]
                 } # End identity check
             } # End group/progress FOR
@@ -118,7 +119,7 @@ function Get-Distro {
 
     END {
 
-    $Distros | ft -AutoSize -Wrap
+    $Distros | Format-Table -AutoSize -Wrap
 
     } # End END block
 } # End Get-Distro function
@@ -160,13 +161,13 @@ Function Get-Telnet{   Param (
         
     )
     #Attach to the remote device, setup streaming requirements
-    $Socket = New-Object System.Net.Sockets.TcpClient($RemoteHost, $Port)
+    $Socket = New-Object -TypeName System.Net.Sockets.TcpClient($RemoteHost, $Port)
     if ($Socket)
     {   
         $Stream = $Socket.GetStream()
-        $Writer = New-Object System.IO.StreamWriter($Stream)
-        $Buffer = New-Object System.Byte[] 1024 
-        $Encoding = New-Object System.Text.AsciiEncoding
+        $Writer = New-Object -TypeName System.IO.StreamWriter($Stream)
+        $Buffer = New-Object -TypeName System.Byte[] 1024 
+        $Encoding = New-Object -TypeName System.Text.AsciiEncoding
 
         #Now start issuing the commands
         ForEach ($Command in $Commands) 
@@ -224,7 +225,7 @@ Function Get-Telnet{   Param (
         Creates an email address report for multiple specific users at the root of C:\
 
 #>
-function Create-EmailAddressReport {
+function Publish-EmailAddressReport {
     [CmdletBinding()]
     param (
     [Parameter(ValueFromPipeline=$true)]
@@ -328,7 +329,7 @@ span a:hover{ text-decoration:underline}
 }
 "@	
     $image = "$PSScriptRoot\Logo.png"
-    $html = "<html><head><title>$((Get-MsolCompanyInformation).DisplayName) - E-mail Address Report</title><style>$css</style></head><body><img class='logo' src=$image alt='Salvus TG'><table border='1'><tr><th>Mailbox</th><th>Associated E-mail Addresses</th></tr>"
+    $html = "<html><head><title>$((Get-MsolCompanyInformation).DisplayName) - E-mail Address Report</title><style>$css</style></head><body><img class='logo' src=$image alt='Salvus TG'>Report generated: $(Get-Date)<table border='1'><tr><th>Mailbox</th><th>Associated E-mail Addresses</th></tr>"
     if ($Identity -eq "") { $Mailbox = Get-Mailbox }
     elseif ($Identity.Count -gt 1) {
         foreach ($i in $Identity) {
@@ -337,7 +338,7 @@ span a:hover{ text-decoration:underline}
     }
     else { $Mailbox = Get-Mailbox $Identity }
     if (!$Path) { $Path = [Environment]::GetFolderPath("MyDocuments") + "\Powershell Reports" }
-    if (!(Test-Path $Path)) { New-Item $Path -ItemType Directory }
+    if (!(Test-Path -Path $Path)) { New-Item -Path $Path -ItemType Directory }
 
     } # END BEGIN BLOCK
     PROCESS {
@@ -357,7 +358,7 @@ span a:hover{ text-decoration:underline}
     } # END PROCESS BLOCK
         
     END {
-        $html | out-file $Path\Email_Address_Report.html
-        Invoke-Item $Path\Email_Address_Report.html
+        $html | Out-File -FilePath $Path\Email_Address_Report.html
+        Invoke-Item -Path $Path\Email_Address_Report.html
     } # END END BLOCK
 }
