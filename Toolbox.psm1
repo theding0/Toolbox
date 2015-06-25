@@ -193,6 +193,9 @@ Function Get-Telnet{   Param (
     
     $Result 
 }
+
+#region BRANDED REPORTS
+
 <#
 	.SYNOPSIS
 	    Create a branded HTML report with all mailboxes and their associated e-mail addresses
@@ -233,100 +236,7 @@ function Create-EmailAddressReport {
     )
     BEGIN {
     $MCount = 0
-    $css = @"
-    table { border:0px; border-collapse:collapse ; width:100%} 
-td {vertical-align:top; padding:0px; }
-
-
-td, table, select, input, textarea{
-	font-family:tahoma;
-	font-size:11px;
-	vertical-align:top;
-	line-height:14px;
-	color:#363636
-}
-IMG.logo {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    padding-bottom: 25px;
-}
-tr { page-break-inside:avoid; page-break-after:auto }
-th { background-color: DarkOrange;color: white; }
-
-form { margin:0px; padding:0px}
-body { margin:0px; padding:0px; background:#FFFFFF}
-
-ul{margin:0px; padding:0px; list-style:none}
-ul li { background:url(images/marker.gif) no-repeat 0 8px; padding-left:21px; line-height:18px}
-ul li a{text-decoration:none; color:#363636}
-ul li a:hover{color:#ED2024}
-
-b { text-transform:uppercase; color:#ED2024; font-weight:100}
-b a{text-decoration:none; color:#ED2024}
-b a:hover{ text-decoration:underline}
-span {color:#ED2024}
-span a{text-decoration:none; color:#ED2024}
-span a:hover{ text-decoration:underline}
-
-
-.header {height:164px}
-.header1 {width:218px; padding-top:14px}
-.header1 a{color:#363636; text-decoration:none}
-.header1 a:hover{ color:#ED2024}
-.header2 {background:url(images/bg_header.jpg) no-repeat top; height:246px}
-.header3 {background:url(images/line_header.jpg) no-repeat top left; height:22px}
-
-.style {width:766px; height:900px}
-.style1 {width:277px; padding:18px 27px 0 0}
-.style2 {width:382px; padding-top:14px}
-.style3 {width:416px; padding:14px 27px 0 0}
-.style4 {width:240px; padding-top:18px}
-.style5 {width:402px; padding:14px 27px 0 0}
-.style6 {width:247px; padding-top:14px}
-.style7 {width:253px; padding:14px 27px 0 0}
-.style8 {width:394px; padding-top:14px}
-.style9 {width:446px; padding:14px 22px 0 0}
-.style10 {width:210px; padding-top:14px}
-.style11 {width:315px; padding:14px 26px 0 0}
-.style12 {width:334px; padding-top:14px}
-.style13 {width:254px; padding:14px 25px 0 0}
-.style14 {width:393px; padding-top:14px}
-.style15 {width:215px; padding:18px 25px 0 0}
-.style16 {width:435px; padding-top:14px}
-.style17 {width:710px; padding-top:14px}
-
-
-.bg1{background:url(images/bg_line1.gif) repeat-y; width:1px; height:100%}
-.bg2{background:#363636; height:4px}
-.bg3{background:url(images/bg_line2.gif) no-repeat bottom}
-.bg4 {background:url(images/bg_line3.gif) repeat-x; margin:0 74px 0 53px; width:auto}
-.bg5 {background:url(images/bg_line3.gif) repeat-x; margin:0 55px 0 53px; width:auto}
-
-
-.footer {height:84px; vertical-align: middle; text-align:center}
-.footer span a{ text-decoration:none; color:#ED2024}
-.footer span a:hover{color:#363636}
-.footer a{ text-decoration:none; color:#363636}
-.footer a:hover{color:#ED2024}
-
-
-.form input {
-	width:201px;
-	height:26px;
-	padding:5px 0 0 6px;
-	line-height:13px;
-	border:solid 1px #363636;
-}
-
-.form textarea {
-	width:217px;
-	height:149px;
-	overflow: auto;
-	padding:4px 0 0 6px;
-	border:solid 1px #363636;
-}
-"@	
+    $css = Get-Content "$PSScriptRoot\style.css"	
     $image = "$PSScriptRoot\Logo.png"
     $html = "<html><head><title>$((Get-MsolCompanyInformation).DisplayName) - E-mail Address Report</title><style>$css</style></head><body><img class='logo' src=$image alt='Salvus TG'><table border='1'><tr><th>Mailbox</th><th>Associated E-mail Addresses</th></tr>"
     if ($Identity -eq "") { $Mailbox = Get-Mailbox }
@@ -361,3 +271,233 @@ span a:hover{ text-decoration:underline}
         Invoke-Item $Path\Email_Address_Report.html
     } # END END BLOCK
 }
+function Get-MailboxAccessReport {
+[CmdletBinding()]
+    param (
+    [Parameter(ValueFromPipeline=$true)]
+    [String[]]$Identity,
+    [String]$Path
+    )
+BEGIN{
+$Mailbox = Get-Mailbox
+    $css = Get-Content "$PSScriptRoot\style.css"
+    $image = "$PSScriptRoot\Logo.png"
+    $html = "<html><head><title>$((Get-MsolCompanyInformation).DisplayName) - Mailbox Access Report</title><style>$css</style></head><body><img class='logo' src=$image alt='Salvus TG'><table border='1'><tr><th>Mailbox</th><th>User's With Full Access</th></tr>"
+    if ($Identity -eq "") { $Mailbox = Get-Mailbox }
+    elseif ($Identity.Count -gt 1) {
+        foreach ($i in $Identity) {
+            $Mailbox += (Get-Mailbox $i)
+        }
+    }
+    else { $Mailbox = Get-Mailbox $Identity }
+    if (!$Path) { $Path = [Environment]::GetFolderPath("MyDocuments") + "\Powershell Reports" }
+    if (!(Test-Path $Path)) { New-Item $Path -ItemType Directory }
+
+    } # END BEGIN BLOCK
+    PROCESS {
+        foreach ($m in $Mailbox) {
+        
+            if ($m.DisplayName -match 'Discovery Search') { }
+            else { $html = $html + "<tr><td>$($m.DisplayName)</td><td>" 
+                foreach ($a in (Get-MailboxPermission $m.Id)) {
+                    if (($a.User -match "X400") -or ($a.User -match "X500") -or ($a.User -match "admin") -or ($a.User -match "NT AUTHORITY") -or ($a.User -match "Management") -or ($a.User -match "Exchange") -or ($a.User -match "Folder") -or ($a.User -match "Delegated") -or ($a.User -match "S-1-5") -or ($a.User -match "Managed")) { }
+                    else { $html = $html + "$($a.User)<br>" }
+                }
+            }
+            $html = $html + "</td></tr>"
+            $i++
+        } # End Foreach statement
+        $html = $html + "</table></body></html>"
+    } # END PROCESS BLOCK
+        
+    END {
+        $html | out-file $Path\Mailbox_Access_Report.html
+        Invoke-Item $Path\Mailbox_Access_Report.html
+    } # END END BLOCK
+} # End Get-MailboxAccessReport 
+
+#endregion BRANDED REPORTS
+
+#region PVS
+
+<#
+.SYNOPSIS
+Creates a new PVS user in office 365 with the option to apply a license
+
+.DESCRIPTION
+The New-PVSUser cmdlet will create a new user in Office 365. Depending on the parameters, you can select an existing user by UPN and it will add the new user to all of the distribution groups the copied user is a part of (provided you use the license switch).
+
+NOTE: There MUST be an available license for the -Licensed switch to work. Hopefully I'll find a way to automatically purchase a license if one doesn't exist, but it eludes me at the moment. The ultimate way for full usage of this tool is to add a licence before running New-PVSUser
+
+TIP: All the parameters are positional, so you could just type everything out without typing parameter names like -Alias. See 'Get-Help New-PVSUser -Examples' for an example.
+
+.PARAMETER Alias
+Alias for the user. PVS uses the first initial last name scheme
+
+.PARAMETER FirstName
+First name of the new user
+
+.PARAMETER LastName
+Last name of the new user
+
+.PARAMETER Copied
+UPN for the user you are copying distribution groups from. This needs to be full e-mail address
+
+.PARAMETER Exchange
+Switch that will apply the Exchange Online Plan to the user.
+
+.PARAMETER Lync
+Switch that will apply the Lync license.
+
+.EXAMPLE
+New-PVSUser -Alias bbango -FirstName Bingo -LastName Bango -Copied khileman@propertyvaluationservices.net -Licensed
+This will create a user named Bingo Bango and copy all distribution groups that Kent Hileman is a member off
+
+.EXAMPLE
+New-PVSUser -Alias bbango -FirstName Bingo -LastName Bango
+This will create a non-licensed user and will not copy distribution groups
+
+.EXAMPLE
+New-PVSUser bbango Bingo Bango khileman@propertyvaluationservices.net -Licenced
+This is an example of just using the positional parameters while not typing out -Alias and the like
+
+#>
+function New-PVSUser {
+    [CmdLetBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Position=0,Mandatory=$true)]
+        [string]$Alias,
+        [Parameter(Position=1,Mandatory=$true)]
+        [string]$FirstName,
+        [Parameter(Position=2,Mandatory=$true)]
+        [string]$LastName,
+        [Parameter(Position=3,Mandatory=$false)]
+        [string]$Copied,
+        [switch]$Exchange,
+        [switch]$Lync
+    )
+    $Params = @{
+    FirstName = $FirstName
+    LastName = $LastName
+    DisplayName = "$FirstName $LastName"
+    UserPrincipalName = "$Alias@propertyvaluationservices.net"
+    LicenseAssignment = 'propertyvaluation:EXCHANGESTANDARD'
+    UsageLocation = 'US'
+    }
+    if ($Exchange) {
+
+        # Create new user with exchange license
+
+        New-MsolUser @params
+        Write-Verbose "Provisioning mailbox and copying groups from $Copied"
+        while($(Get-MsolUser -UserPrincipalName "$Alias@propertyvaluationservices.net").OverallProvisioningStatus -ne "Success") {
+            Write-Verbose "Provisioning mailbox... Status: $((Get-MsolUser -UserPrincipalName "$Alias@propertyvaluationservices.net").OverallProvisioningStatus)"
+            start-sleep -Seconds 5
+        }
+        Write-Verbose "Provisioning complete. Copying groups from $Copied"
+        start-sleep -Seconds 10
+
+        # Copy distribution group membership
+
+        $copied_dn = (get-mailbox $Copied).distinguishedname
+        $new_dn = (get-mailbox $Alias).distinguishedname
+        $groups = Get-DistributionGroup -ResultSize unlimited
+
+        foreach ($group in $groups) {
+            if ((get-distributiongroupmember $group.identity | select -expand distinguishedname) -contains $copied_dn) {
+                Add-DistributionGroupMember -Identity $group.identity -Member $Alias
+                Write-Verbose "Added to $($group.identity)"
+                }
+            }
+        }
+    else {
+        Write-Verbose "Creating user"
+        # Create user without license
+        New-MsolUser -FirstName $FirstName -LastName $LastName -DisplayName "$FirstName $LastName" -UserPrincipalName "$Alias@propertyvaluationservices.net" -UsageLocation US
+        Write-Verbose "User creation complete"
+
+    }
+    Write-Verbose "Changing user password to Welcome1"
+    Set-MsolUserPassword -UserPrincipalName "$Alias@propertyvaluationservices.net" -NewPassword Welcome1
+    Write-Verbose "Password is now Welcome1"
+
+    if($Lync) {
+        Set-MsolUserLicense -UserPrincipalName "$Alias@propertyvaluationservices.net" -AddLicenses "propertyvaluation:MCOSTANDARD"
+        Write-Verbose "Added lync license"
+    }
+
+}
+
+
+<#
+.SYNOPSIS
+Automates all processes involved with terminating a PVS user in office 365
+
+.DESCRIPTION
+The Term-PVSUser command will work on whoever you enter into the -Alias parameter. It will change their password to P@ssw0rd!, forward e-mail to the supervisor, give the supervisor full access to the mailbox, remove the user from all distribution groups they are a part of, and hide from the GAL
+
+.PARAMETER Alias
+Alias for the user. PVS uses the first initial last name scheme.
+
+.PARAMETER Alias
+First intial and last name of the user you are terminating
+
+.PARAMETER SupervisorUpn
+E-mail address of the supervisor
+
+.EXAMPLE
+Term-PVSUser -Alias bbango -SupervisorUpn vparker@propertyvaluationservices.net
+
+#>
+function Term-PVSUser {
+    [CmdLetBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Position=0,Mandatory=$true)]
+        [string]$Alias,
+        [Parameter(Position=1,Mandatory=$true)]
+        [string]$SupervisorUpn
+    )
+    # Confirmation window
+    $title = "Terminate User"
+    $message = "You have chosen to terminate $Alias and e-mail will be forwarded to $SupervisorUpn. Continue? (Default is 'No')"
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Terminate $Alias"
+    $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Cancel's script."
+    $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+
+    $result = $host.ui.PromptForChoice($title, $message, $options, 1)
+    switch($result) {
+        0 { 
+
+            # Change o365 password     
+            Set-MsolUserPassword -UserPrincipalName "$Alias@propertyvaluationservices.net" -NewPassword P@ssw0rd! -ForceChangePassword $false
+            Write-Verbose "Password changed to P@ssw0rd!" 
+
+            # Forward e-mail to supervisor
+            Set-Mailbox -Identity $Alias -DeliverToMailboxAndForward $true -ForwardingSmtpAddress $SupervisorUpn
+            Write-Verbose "E-mail has been forwarded to $SupervisorUpn" 
+
+            # Give supervisor full access to mailbox
+            Add-MailboxPermission -Identity $Alias -User $SupervisorUpn -AccessRights FullAccess -InheritanceType All 
+            Write-Verbose "$SupervisorUpn has been given full access to $Alias 's mailbox"
+
+            # Remove from all distribution groups
+            $user_dn = (get-mailbox $Alias).distinguishedname
+            foreach ($group in Get-DistributionGroup -resultsize unlimited){
+                if ((Get-DistributionGroupMember $group.identity | select -expand distinguishedname) -contains $user_dn){
+                ForEach-Object { 
+                    Remove-DistributionGroupMember -Identity $group.name -Member $Alias -Confirm:$false
+                    Write-Verbose "$Alias has been removed from $($group.name)" 
+                } 
+            }   
+        } 
+        # Hide from GAL
+            Set-Mailbox -Identity $Alias -HiddenFromAddressListsEnabled $true
+            Write-Verbose "$Alias has been hidden from the Exchange GAL"
+        }
+
+        1 {
+            Write-Verbose "Termination Canceled"
+        }
+    }
+}
+#endregion PVS
